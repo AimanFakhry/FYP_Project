@@ -342,27 +342,40 @@ class LessonController extends Controller
     }
 
     public function checkDocker()
-    {
-        try {
-            $dockerHost = 'tcp://127.0.0.1:2375';
-            $env = [
-                'DOCKER_HOST' => $dockerHost,
-                'SystemRoot' => getenv('SystemRoot') ?: 'C:\\Windows',
-                'PATH' => getenv('PATH'),
-            ];
+{
+    try {
+        // Detect if we are on Windows or Linux
+        $isWindows = strtoupper(substr(PHP_OS, 0, 3)) === 'WIN';
+        
+        // standard Linux socket path for Docker
+        $defaultHost = $isWindows ? 'tcp://127.0.0.1:2375' : 'unix:///var/run/docker.sock';
+        $dockerHost = env('DOCKER_HOST', $defaultHost);
 
-            $process = new Process(['docker', '-H', $dockerHost, 'info'], null, $env);
-            $process->setTimeout(2);
-            $process->run();
+        // We don't need to pass a manual PATH usually, 
+        // but we ensure the environment is clean for Linux
+        $process = new Process(['docker', 'info']);
+        
+        // Set the DOCKER_HOST environment variable for the process
+        $process->setEnv(['DOCKER_HOST' => $dockerHost]);
+        $process->setTimeout(5); // Increased slightly for slower droplets
+        $process->run();
 
-            if ($process->isSuccessful()) {
-                return response()->json(['connected' => true]);
-            }
-
-            return response()->json(['connected' => false]);
-
-        } catch (\Exception $e) {
-            return response()->json(['connected' => false, 'error' => $e->getMessage()]);
+        if ($process->isSuccessful()) {
+            return response()->json(['connected' => true]);
         }
+
+        // Return the error output if it failed (useful for debugging)
+        return response()->json([
+            'connected' => false, 
+            'message' => 'Docker is installed but unreachable.',
+            'debug' => $process->getErrorOutput()
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'connected' => false, 
+            'error' => $e->getMessage()
+        ]);
     }
+}
 }
