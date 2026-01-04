@@ -123,7 +123,7 @@ class LessonController extends Controller
                     'fib_answer' => 'required|string',
                 ]);
                 LessonFillInTheBlank::updateOrCreate(
-                    ['lesson_id' => $lesson->id,
+                    ['lesson_id' => $lesson->id,]
                     ['question' => $request->fib_question, 'answer' => $request->fib_answer]
                 );
                 // Clean up others
