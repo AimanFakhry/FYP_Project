@@ -87,7 +87,7 @@
                             <h3 class="text-sm font-bold text-gray-900 uppercase tracking-wider mb-3">Text Lesson Details</h3>
                             <div class="bg-gray-50 p-4 rounded-md border border-gray-200">
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Full Reading Material</label>
-                                <textarea name="text_only_content" rows="8" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2 px-3 border">{{ $lesson->textOnly->content ?? '' }}</textarea>
+                                <textarea name="text_only_content" rows="8" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2 px-3 border">{{ $text_only_content ?? '' }}</textarea>
                             </div>
                         </div>
 
