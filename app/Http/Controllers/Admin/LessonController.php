@@ -123,7 +123,7 @@ class LessonController extends Controller
                     'fib_answer' => 'required|string',
                 ]);
                 LessonFillInTheBlank::updateOrCreate(
-                    ['lesson_id' => $lesson->id,]
+                    ['lesson_id' => $lesson->id],
                     ['question' => $request->fib_question, 'answer' => $request->fib_answer]
                 );
                 // Clean up others
@@ -134,7 +134,7 @@ class LessonController extends Controller
             case 'sandbox':
                 $request->validate(['sandbox_code' => 'nullable|string']);
                 LessonSandbox::updateOrCreate(
-                    ['lesson_id' => $lesson->id,
+                    ['lesson_id' => $lesson->id],
                     ['starting_code' => $request->sandbox_code]
                 );
                 // Clean up others
