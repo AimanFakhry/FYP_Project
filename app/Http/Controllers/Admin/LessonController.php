@@ -83,11 +83,13 @@ class LessonController extends Controller
     public function edit(Lesson $lesson)
     {
         $achievements = Achievement::all();
-        // Load specific relationships (skip textOnly for text_only since content is in lesson)
-        if ($lesson->activity_type !== 'text_only') {
+        $text_only_content = null;
+        if ($lesson->activity_type === 'text_only') {
+            $text_only_content = $lesson->content;
+        } else {
             $lesson->load(['textOnly', 'fillInTheBlank', 'sandbox']);
         }
-        return view('admin.lessons.edit', compact('lesson', 'achievements'));
+        return view('admin.lessons.edit', compact('lesson', 'achievements', 'text_only_content'));
     }
 
     public function update(Request $request, Lesson $lesson)
