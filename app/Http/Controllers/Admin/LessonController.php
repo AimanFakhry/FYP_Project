@@ -40,7 +40,6 @@ class LessonController extends Controller
                 $request->validate(['text_only_content' => 'required|string']);
                 // Store full content in Lesson.content for text_only
                 $lesson->content = $request->text_only_content;
-                // No LessonTextOnly for text_only (stored in Lesson.content)
                 break;
 
             case 'fill_in_the_blank':
@@ -48,6 +47,18 @@ class LessonController extends Controller
                     'fib_question' => 'required|string',
                     'fib_answer' => 'required|string',
                 ]);
+                break;
+
+            case 'sandbox':
+                $request->validate(['sandbox_code' => 'nullable|string']);
+                break;
+        }
+
+        $lesson->save(); // Save the lesson first (after setting content for text_only)
+
+        // 4. Now Create Related Records (lesson_id is now available)
+        switch ($request->activity_type) {
+            case 'fill_in_the_blank':
                 LessonFillInTheBlank::create([
                     'lesson_id' => $lesson->id,
                     'question' => $request->fib_question,
@@ -56,15 +67,14 @@ class LessonController extends Controller
                 break;
 
             case 'sandbox':
-                $request->validate(['sandbox_code' => 'nullable|string']);
                 LessonSandbox::create([
                     'lesson_id' => $lesson->id,
                     'starting_code' => $request->sandbox_code,
                 ]);
                 break;
-        }
 
-        $lesson->save(); // Save after adjustments
+            // text_only has no related record
+        }
 
         return redirect()->route('admin.courses.show', $group->course)
                          ->with('success', 'Lesson added successfully.');
@@ -113,7 +123,7 @@ class LessonController extends Controller
                     'fib_answer' => 'required|string',
                 ]);
                 LessonFillInTheBlank::updateOrCreate(
-                    ['lesson_id' => $lesson->id],
+                    ['lesson_id' => $lesson->id,
                     ['question' => $request->fib_question, 'answer' => $request->fib_answer]
                 );
                 // Clean up others
@@ -124,7 +134,7 @@ class LessonController extends Controller
             case 'sandbox':
                 $request->validate(['sandbox_code' => 'nullable|string']);
                 LessonSandbox::updateOrCreate(
-                    ['lesson_id' => $lesson->id],
+                    ['lesson_id' => $lesson->id,
                     ['starting_code' => $request->sandbox_code]
                 );
                 // Clean up others
