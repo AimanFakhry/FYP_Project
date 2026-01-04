@@ -6,9 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\LessonGroup;
 use App\Models\Lesson;
 use App\Models\Achievement;
-use App\Models\LessonTextOnly;       // <-- NEW
-use App\Models\LessonFillInTheBlank; // <-- NEW
-use App\Models\LessonSandbox;        // <-- NEW
+use App\Models\LessonTextOnly;       // <-- Keep for other types if needed
+use App\Models\LessonFillInTheBlank; // <-- Keep
+use App\Models\LessonSandbox;        // <-- Keep
 use Illuminate\Http\Request;
 
 class LessonController extends Controller
@@ -26,23 +26,21 @@ class LessonController extends Controller
             'title' => 'required|string|max:255',
             'order' => 'required|integer',
             'activity_type' => 'required|in:text_only,fill_in_the_blank,sandbox',
-            'content' => 'nullable|string', // Basic intro content
+            'content' => 'nullable|string', // Basic intro content (used for non-text_only or as fallback)
             'achievement_id' => 'nullable|exists:achievements,id',
         ]);
 
         // 2. Create Base Lesson
         $lesson = new Lesson($request->only(['title', 'order', 'activity_type', 'content', 'achievement_id']));
         $lesson->lesson_group_id = $group->id;
-        $lesson->save();
 
-        // 3. Handle Specific Activity Data
+        // 3. Handle Specific Activity Data and Adjust Content
         switch ($request->activity_type) {
             case 'text_only':
                 $request->validate(['text_only_content' => 'required|string']);
-                LessonTextOnly::create([
-                    'lesson_id' => $lesson->id,
-                    'content' => $request->text_only_content,
-                ]);
+                // Store full content in Lesson.content for text_only
+                $lesson->content = $request->text_only_content;
+                // No LessonTextOnly for text_only (stored in Lesson.content)
                 break;
 
             case 'fill_in_the_blank':
@@ -66,6 +64,8 @@ class LessonController extends Controller
                 break;
         }
 
+        $lesson->save(); // Save after adjustments
+
         return redirect()->route('admin.courses.show', $group->course)
                          ->with('success', 'Lesson added successfully.');
     }
@@ -73,8 +73,10 @@ class LessonController extends Controller
     public function edit(Lesson $lesson)
     {
         $achievements = Achievement::all();
-        // Load specific relationships to populate the form
-        $lesson->load(['textOnly', 'fillInTheBlank', 'sandbox']);
+        // Load specific relationships (skip textOnly for text_only since content is in lesson)
+        if ($lesson->activity_type !== 'text_only') {
+            $lesson->load(['textOnly', 'fillInTheBlank', 'sandbox']);
+        }
         return view('admin.lessons.edit', compact('lesson', 'achievements'));
     }
 
@@ -92,17 +94,17 @@ class LessonController extends Controller
         // 2. Update Base Lesson
         $lesson->update($request->only(['title', 'order', 'activity_type', 'content', 'achievement_id']));
 
-        // 3. Handle Specific Activity Data (Update or Create)
+        // 3. Handle Specific Activity Data and Adjust Content
         switch ($request->activity_type) {
             case 'text_only':
                 $request->validate(['text_only_content' => 'required|string']);
-                LessonTextOnly::updateOrCreate(
-                    ['lesson_id' => $lesson->id],
-                    ['content' => $request->text_only_content]
-                );
-                // Clean up others if switching types (optional but good practice)
+                // Update content in Lesson.content for text_only
+                $lesson->content = $request->text_only_content;
+                $lesson->save();
+                // Clean up others if switching types
                 $lesson->fillInTheBlank()->delete();
                 $lesson->sandbox()->delete();
+                // No LessonTextOnly to delete for text_only
                 break;
 
             case 'fill_in_the_blank':
@@ -114,6 +116,7 @@ class LessonController extends Controller
                     ['lesson_id' => $lesson->id],
                     ['question' => $request->fib_question, 'answer' => $request->fib_answer]
                 );
+                // Clean up others
                 $lesson->textOnly()->delete();
                 $lesson->sandbox()->delete();
                 break;
@@ -124,6 +127,7 @@ class LessonController extends Controller
                     ['lesson_id' => $lesson->id],
                     ['starting_code' => $request->sandbox_code]
                 );
+                // Clean up others
                 $lesson->textOnly()->delete();
                 $lesson->fillInTheBlank()->delete();
                 break;
