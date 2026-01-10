@@ -106,11 +106,8 @@ class ProfileController extends Controller
         // validation for users includes theme and avatar
         $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users,email,' . $user->id,
             'theme' => 'required|in:cheerful,spacy,techy',
             'avatar' => 'required|in:cat,dog,panda,fox,rabbit,lion',
-            'current_password' => 'nullable|required_with:new_password|current_password',
-            'new_password' => 'nullable|string|min:8|confirmed',
         ]);
 
         $user->name = $request->name;
