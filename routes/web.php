@@ -88,6 +88,7 @@ Route::middleware(['auth', IsAdminMiddleware::class])->prefix('admin')->name('ad
     Route::delete('/users/{user}', [AdminUserController::class, 'destroy'])->name('users.destroy');
 
     Route::get('/profile', [ProfileController::class, 'showAdmin'])->name('profile.show');
+    Route::post('/profile/update', [ProfileController::class, 'updateAdmin'])->name('profile.update');
     
     Route::get('/courses', [AdminCourseController::class, 'index'])->name('courses.index');
     Route::get('/courses/{course}', [AdminCourseController::class, 'show'])->name('courses.show');

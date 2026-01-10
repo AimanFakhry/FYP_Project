@@ -17,13 +17,15 @@ class ProfileController extends Controller
     public function show()
     {
         $user = Auth::user();
-        
-        // --- Calculate Real Data from DB ---
+
+        // Redirect admins to their specific profile page
+        if ($user->is_admin) {
+            return redirect()->route('admin.profile.show');
+        }
         
         $level = floor($user->exptotal / 1000) + 1;
         $leaderboardRank = $user->getLeaderboardRank();
         
-        // Calculate Progress for each Course
         $courses = Course::withCount('lessons')->get();
         $courseProgress = [];
 
@@ -47,8 +49,6 @@ class ProfileController extends Controller
 
         $achievements = $user->achievements;
 
-        // Note: Avatars are defined in the view, not here.
-
         return view('users.profile', compact(
             'user', 
             'level', 
@@ -59,88 +59,16 @@ class ProfileController extends Controller
     }
 
     /**
-     * Reset progress for a specific course.
+     * Show the ADMIN profile.
      */
-    public function resetCourse(Request $request)
-    {
-        $request->validate([
-            'course_id' => 'required|exists:courses,id',
-        ]);
-
-        $user = Auth::user();
-        $course = Course::findOrFail($request->input('course_id'));
-
-        $lessonIds = $course->lessons()->pluck('lessons.id');
-        $user->completedLessons()->detach($lessonIds);
-
-        return redirect()->back()->with('success', "Progress for {$course->name} has been reset.");
-    }
-
-    /**
-     * Show the edit profile form.
-     */
-    public function edit()
-    {
-        $user = Auth::user();
-        // Avatars defined in view
-        return view('users.profile_edit', compact('user'));
-    }
-
-    /**
-     * Update the user's profile.
-     */
-    public function update(Request $request)
-    {
-        $user = Auth::user();
-
-        // 1. Define base validation rules (always required)
-        $rules = [
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users,email,' . $user->id,
-        ];
-
-        // 2. Add Theme/Avatar validation ONLY for non-admins (regular users)
-        if (!$user->is_admin) {
-            $rules['theme'] = 'required|in:cheerful,spacy,techy';
-            $rules['avatar'] = 'required|in:cat,dog,panda,fox,rabbit,lion';
-        }
-
-        // 3. Add Password validation ONLY for admins (if fields are provided)
-        if ($user->is_admin && ($request->filled('current_password') || $request->filled('new_password'))) {
-            $rules['current_password'] = 'required|current_password';
-            $rules['new_password'] = 'required|string|min:8|confirmed';
-        }
-
-        $request->validate($rules);
-
-        // 4. Update User Data
-        $user->name = $request->name;
-        $user->email = $request->email;
-
-        if (!$user->is_admin) {
-            $user->theme = $request->theme;
-            $user->avatar = $request->avatar;
-        }
-
-        if ($user->is_admin && $request->filled('new_password')) {
-            $user->password = Hash::make($request->new_password);
-        }
-
-        $user->save();
-
-        // 5. Redirect based on role
-        if ($user->is_admin) {
-            return redirect()->route('admin.profile.show')->with('success', 'Profile updated successfully!');
-        }
-
-        return redirect()->route('profile.show')->with('success', 'Profile updated successfully!');
-    }
-
     public function showAdmin()
     {
         $user = Auth::user();
         
-        // Fetch recent login sessions for the security log
+        if (!$user->is_admin) {
+            return redirect()->route('profile.show');
+        }
+
         $sessions = DB::table('sessions')
             ->where('user_id', $user->id)
             ->orderBy('last_activity', 'desc')
@@ -148,5 +76,98 @@ class ProfileController extends Controller
             ->get();
 
         return view('admin.profile.show', compact('user', 'sessions'));
+    }
+
+    /**
+     * Show the edit profile form (Users Only).
+     */
+    public function edit()
+    {
+        $user = Auth::user();
+
+        if ($user->is_admin) {
+            return redirect()->route('admin.profile.show');
+        }
+
+        return view('users.profile_edit', compact('user'));
+    }
+
+    /**
+     * Update the REGULAR USER'S profile.
+     */
+    public function update(Request $request)
+    {
+        $user = Auth::user();
+
+        if ($user->is_admin) {
+            return redirect()->route('admin.profile.show');
+        }
+
+        // validation for users includes theme and avatar
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users,email,' . $user->id,
+            'theme' => 'required|in:cheerful,spacy,techy',
+            'avatar' => 'required|in:cat,dog,panda,fox,rabbit,lion',
+            'current_password' => 'nullable|required_with:new_password|current_password',
+            'new_password' => 'nullable|string|min:8|confirmed',
+        ]);
+
+        $user->name = $request->name;
+        $user->email = $request->email;
+        $user->theme = $request->theme;
+        $user->avatar = $request->avatar;
+
+        if ($request->filled('new_password')) {
+            $user->password = Hash::make($request->new_password);
+        }
+
+        $user->save();
+
+        return redirect()->route('profile.show')->with('success', 'Profile updated successfully!');
+    }
+
+    /**
+     * Update the ADMIN'S profile.
+     */
+    public function updateAdmin(Request $request)
+    {
+        $user = Auth::user();
+
+        if (!$user->is_admin) {
+            abort(403);
+        }
+
+        // Validation for admin (No theme/avatar required)
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users,email,' . $user->id,
+            'current_password' => 'nullable|required_with:new_password|current_password',
+            'new_password' => 'nullable|string|min:8|confirmed',
+        ]);
+
+        $user->name = $request->name;
+        $user->email = $request->email;
+
+        if ($request->filled('new_password')) {
+            $user->password = Hash::make($request->new_password);
+        }
+
+        $user->save();
+
+        return redirect()->route('admin.profile.show')->with('success', 'Admin profile updated successfully!');
+    }
+
+    public function resetCourse(Request $request)
+    {
+        $request->validate(['course_id' => 'required|exists:courses,id']);
+        $user = Auth::user();
+        if ($user->is_admin) return redirect()->back();
+
+        $course = Course::findOrFail($request->input('course_id'));
+        $lessonIds = $course->lessons()->pluck('lessons.id');
+        $user->completedLessons()->detach($lessonIds);
+
+        return redirect()->back()->with('success', "Progress for {$course->name} has been reset.");
     }
 }

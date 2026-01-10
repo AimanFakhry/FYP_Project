@@ -142,7 +142,7 @@
                         </div>
                         
                         <div class="p-6">
-                            <form action="{{ route('profile.update') }}" method="POST">
+                            <form action="{{ route('admin.profile.update') }}" method="POST">
                                 @csrf
                                 <!-- Route::post('/profile/update') handles this -->
                                 
