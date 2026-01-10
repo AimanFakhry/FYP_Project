@@ -93,7 +93,7 @@ class ProfileController extends Controller
     {
         $user = Auth::user();
 
-        // 1. Define validation rules
+        // 1. Define base validation rules (always required)
         $rules = [
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email,' . $user->id,
@@ -105,8 +105,8 @@ class ProfileController extends Controller
             $rules['avatar'] = 'required|in:cat,dog,panda,fox,rabbit,lion';
         }
 
-        // 3. Add Password validation ONLY if fields are provided
-        if ($request->filled('current_password') || $request->filled('new_password')) {
+        // 3. Add Password validation ONLY for admins (if fields are provided)
+        if ($user->is_admin && ($request->filled('current_password') || $request->filled('new_password'))) {
             $rules['current_password'] = 'required|current_password';
             $rules['new_password'] = 'required|string|min:8|confirmed';
         }
@@ -122,7 +122,7 @@ class ProfileController extends Controller
             $user->avatar = $request->avatar;
         }
 
-        if ($request->filled('new_password')) {
+        if ($user->is_admin && $request->filled('new_password')) {
             $user->password = Hash::make($request->new_password);
         }
 
