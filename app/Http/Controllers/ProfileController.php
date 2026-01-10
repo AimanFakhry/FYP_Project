@@ -111,13 +111,8 @@ class ProfileController extends Controller
         ]);
 
         $user->name = $request->name;
-        $user->email = $request->email;
         $user->theme = $request->theme;
         $user->avatar = $request->avatar;
-
-        if ($request->filled('new_password')) {
-            $user->password = Hash::make($request->new_password);
-        }
 
         $user->save();
 
